@@ -3,6 +3,7 @@
 import pygame
 import random
 import time
+from abc import ABC, abstractmethod
 
 class Background:
     """
@@ -60,59 +61,58 @@ class Background:
     # move()
 # Background:
 
-class Player:
+class GameObject(ABC):
+    def __init__(self, image, x, y, velocidade):
+        self.image = image
+        self.x = x
+        self.y = y
+        self.velocidade = velocidade
+    # __init__()
+
+    @abstractmethod
+    def update(self):
+        pass
+    # update()
+
+    def draw(self, screen):
+        screen.blit(self.image, (self.x, self.y))
+    # draw()
+# GameObject:
+
+class Player(GameObject):
     """
     Classe Jogador
     """
-    image = None
-    x = None
-    y = None
-
     def __init__(self, x, y):
         player_fig = pygame.image.load("Images/player.png")
         player_fig.convert()
         player_fig = pygame.transform.scale(player_fig, (90, 90))
-        self.image = player_fig
-        self.x = x
-        self.y = y
+        super().__init__(player_fig, x, y, 0)
     # __init__()
 
-    def mover(self, mudar_x):
-        self.x = self.x + mudar_x
-    # mover()
+    def update(self):
+        self.x = self.x + self.velocidade
+    # update()
 
     def bateu_lateral(self):
         return self.x > 760 - 92 or self.x < 40 + 5
     # bateu_lateral()
-
-    # Desenhar Player
-    def draw (self, screen):
-        screen.blit(self.image, (self.x, self.y))
-    #draw()
 # Player:
 
-class Hazard:
+class Hazard(GameObject):
 
-    image = None
-    x = None
-    y = None
-    largura = None
-    altura = None
-
-    def __init__(self, img, x, y):
+    def __init__(self, img, x, y, velocidade):
         hazard_fig = pygame.image.load(img)
         hazard_fig.convert()
         hazard_fig = pygame.transform.scale(hazard_fig, (130, 130))
-        self.image = hazard_fig
-        self.x = x
-        self.y = y
         self.largura = 130
         self.altura = 130
+        super().__init__(hazard_fig, x, y, velocidade)
     # __init__()
 
-    def mover(self, mudar_y):
-        self.y = self.y + mudar_y
-    # mover()
+    def update(self):
+        self.y = self.y + self.velocidade
+    # update()
 
     def reposicionar(self):
         self.y = 0 - self.altura
@@ -126,11 +126,6 @@ class Hazard:
                     return True
         return False
     # colidiu_com()
-
-    # Desenhar Hazard
-    def draw (self, screen):
-        screen.blit(self.image, (self.x, self.y))
-    #draw()
 # Hazard:
 
 class Game:
@@ -255,6 +250,7 @@ class Game:
         # variáveis para movimento de Plano de Fundo/Background
         velocidade_background = 5
         velocidade_hazard = 7
+        velocidade_descida = velocidade_hazard / 4 + velocidade_hazard
 
         faixaA_x = 375
         faixaA_y = 0
@@ -281,19 +277,19 @@ class Game:
         self.player = Player(x, y)
 
         # Criar Harzard_1
-        self.hazard_1 = Hazard("Images/nave.png", h_x, h_y)
+        self.hazard_1 = Hazard("Images/nave.png", h_x, h_y, velocidade_descida)
 
         # Criar Harzard_2
-        self.hazard_2 = Hazard("Images/satelite.png", h_x, h_y)
+        self.hazard_2 = Hazard("Images/satelite.png", h_x, h_y, velocidade_descida)
 
         # Criar Harzard_3
-        self.hazard_3 = Hazard("Images/cometa.png", h_x, h_y)
+        self.hazard_3 = Hazard("Images/cometa.png", h_x, h_y, velocidade_descida)
 
         # Criar Harzard_4
-        self.hazard_4 = Hazard("Images/planeta.png", h_x, h_y)
+        self.hazard_4 = Hazard("Images/planeta.png", h_x, h_y, velocidade_descida)
 
         # Criar Harzard_5
-        self.hazard_5 = Hazard("Images/ameaca.png", h_x, h_y)
+        self.hazard_5 = Hazard("Images/ameaca.png", h_x, h_y, velocidade_descida)
 
         # Inicializamos o relogio e o dt que vai limitar o valor de FPS
         # frames por segundo do jogo
@@ -319,7 +315,8 @@ class Game:
             movL_y = movL_y + velocidade_background
             movR_y = movR_y + velocidade_background
 
-            self.player.mover(self.mudar_x)
+            self.player.velocidade = self.mudar_x
+            self.player.update()
 
             # Mostrar Player
             self.draw_player()
@@ -338,9 +335,8 @@ class Game:
 
             # adicionando movimento ao hazard
             hazard = self.hazard_atual(hzrd)
-            hazard.mover(velocidade_hazard / 4)
+            hazard.update()
             self.draw_hazard(hzrd)
-            hazard.mover(velocidade_hazard)
 
             # definindo onde hazard vai aparecer, recomeçando a posição do obstaculo e da faixa
             if hazard.y > self.height:
