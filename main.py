@@ -42,53 +42,21 @@ class Background:
     # Define posições do Plano de Fundo para criar o movimento
     def move (self, screen, movL_x, movL_y, movR_x, movR_y):
 
-        #movimento background
-        screen.blit(self.image, (movL_x, movL_y))
-        screen.blit(self.image, (movL_x, movL_y + 600))
-        screen.blit(self.image, (movL_x, movL_y + 1200))
-        screen.blit(self.image, (movL_x, movL_y + 1800))
-        screen.blit(self.image, (movL_x, movL_y + 2400))
-        screen.blit(self.image, (movL_x, movL_y + 3000))
-        screen.blit(self.image, (movL_x, movL_y - 600))
-        screen.blit(self.image, (movL_x, movL_y - 1200))
-        screen.blit(self.image, (movL_x, movL_y - 1800))
-        screen.blit(self.image, (movL_x, movL_y - 2400))
-        screen.blit(self.image, (movL_x, movL_y - 3000))
-        screen.blit(self.image, (movL_x, movL_y - 3600))
-        screen.blit(self.image, (movL_x, movL_y - 4200))
-        screen.blit(self.image, (movL_x, movL_y - 4800))
+        # deslocamento contínuo via aritmética modular (2 ladrilhos por camada)
+        altura_fundo = self.image.get_height()
+        desloc_fundo = movL_y % altura_fundo
+        screen.blit(self.image, (movL_x, desloc_fundo))
+        screen.blit(self.image, (movL_x, desloc_fundo - altura_fundo))
 
-        # movimento margem esquerda
-        screen.blit(self.margin_left, (movL_x, movL_y))
-        screen.blit(self.margin_left, (movL_x, movL_y + 600))
-        screen.blit(self.margin_left, (movL_x, movL_y + 1200))
-        screen.blit(self.margin_left, (movL_x, movL_y + 1800))
-        screen.blit(self.margin_left, (movL_x, movL_y + 2400))
-        screen.blit(self.margin_left, (movL_x, movL_y + 3000))
-        screen.blit(self.margin_left, (movL_x, movL_y - 600))
-        screen.blit(self.margin_left, (movL_x, movL_y - 1200))
-        screen.blit(self.margin_left, (movL_x, movL_y - 1800))
-        screen.blit(self.margin_left, (movL_x, movL_y - 2400))
-        screen.blit(self.margin_left, (movL_x, movL_y - 3000))
-        screen.blit(self.margin_left, (movL_x, movL_y - 3600))
-        screen.blit(self.margin_left, (movL_x, movL_y - 4200))
-        screen.blit(self.margin_left, (movL_x, movL_y - 4800))
+        altura_margem_esq = self.margin_left.get_height()
+        desloc_margem_esq = movL_y % altura_margem_esq
+        screen.blit(self.margin_left, (movL_x, desloc_margem_esq))
+        screen.blit(self.margin_left, (movL_x, desloc_margem_esq - altura_margem_esq))
 
-        # movimento margem direita
-        screen.blit(self.margin_right, (movR_x, movR_y))
-        screen.blit(self.margin_right, (movR_x, movR_y + 600))
-        screen.blit(self.margin_right, (movR_x, movR_y + 1200))
-        screen.blit(self.margin_right, (movR_x, movR_y + 1800))
-        screen.blit(self.margin_right, (movR_x, movR_y + 2400))
-        screen.blit(self.margin_right, (movR_x, movR_y + 3000))
-        screen.blit(self.margin_right, (movR_x, movR_y - 600))
-        screen.blit(self.margin_right, (movR_x, movR_y - 1200))
-        screen.blit(self.margin_right, (movR_x, movR_y - 1800))
-        screen.blit(self.margin_right, (movR_x, movR_y - 2400))
-        screen.blit(self.margin_right, (movR_x, movR_y - 3000))
-        screen.blit(self.margin_right, (movR_x, movR_y - 3600))
-        screen.blit(self.margin_right, (movR_x, movR_y - 4200))
-        screen.blit(self.margin_right, (movR_x, movR_y - 4800))
+        altura_margem_dir = self.margin_right.get_height()
+        desloc_margem_dir = movR_y % altura_margem_dir
+        screen.blit(self.margin_right, (movR_x, desloc_margem_dir))
+        screen.blit(self.margin_right, (movR_x, desloc_margem_dir - altura_margem_dir))
     # move()
 # Background:
 
@@ -350,11 +318,6 @@ class Game:
             self.move_background (movL_x, movL_y, movR_x, movR_y)
             movL_y = movL_y + velocidade_background
             movR_y = movR_y + velocidade_background
-
-            #se a imagem ultrapassar a extremidade da tela, move de volta
-            if movL_y > 640 and movR_y > 640:
-                movL_y -= 640
-                movR_y -= 640
 
             self.player.mover(self.mudar_x)
 
