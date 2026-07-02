@@ -136,7 +136,7 @@ class Game:
     run = True
     background = None
     player = None
-    hazard_1 = hazard_2 = hazard_3 = hazard_4 = hazard_5 = None
+    hazards = None
     render_text_bateulateral = None
     render_text_perdeu = None
 
@@ -209,16 +209,7 @@ class Game:
     # draw_player()
 
     def hazard_atual (self, hzrd):
-        if hzrd == 0:
-            return self.hazard_1
-        elif hzrd == 1:
-            return self.hazard_2
-        elif hzrd == 2:
-            return self.hazard_3
-        elif hzrd == 3:
-            return self.hazard_4
-        elif hzrd == 4:
-            return self.hazard_5
+        return self.hazards[hzrd]
     # hazard_atual()
 
     # Desenha Hazard
@@ -276,20 +267,15 @@ class Game:
         # Criar o Player
         self.player = Player(x, y)
 
-        # Criar Harzard_1
-        self.hazard_1 = Hazard("Images/nave.png", h_x, h_y, velocidade_descida)
-
-        # Criar Harzard_2
-        self.hazard_2 = Hazard("Images/satelite.png", h_x, h_y, velocidade_descida)
-
-        # Criar Harzard_3
-        self.hazard_3 = Hazard("Images/cometa.png", h_x, h_y, velocidade_descida)
-
-        # Criar Harzard_4
-        self.hazard_4 = Hazard("Images/planeta.png", h_x, h_y, velocidade_descida)
-
-        # Criar Harzard_5
-        self.hazard_5 = Hazard("Images/ameaca.png", h_x, h_y, velocidade_descida)
+        # Criar os obstáculos (Hazard) em uma coleção dinâmica
+        imagens_hazard = [
+            "Images/nave.png",
+            "Images/satelite.png",
+            "Images/cometa.png",
+            "Images/planeta.png",
+            "Images/ameaca.png",
+        ]
+        self.hazards = [Hazard(img, h_x, h_y, velocidade_descida) for img in imagens_hazard]
 
         # Inicializamos o relogio e o dt que vai limitar o valor de FPS
         # frames por segundo do jogo
