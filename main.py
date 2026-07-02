@@ -109,9 +109,17 @@ class Player:
         self.y = y
     # __init__()
 
+    def mover(self, mudar_x):
+        self.x = self.x + mudar_x
+    # mover()
+
+    def bateu_lateral(self):
+        return self.x > 760 - 92 or self.x < 40 + 5
+    # bateu_lateral()
+
     # Desenhar Player
-    def draw (self, screen, x, y):
-        screen.blit(self.image, (x, y))
+    def draw (self, screen):
+        screen.blit(self.image, (self.x, self.y))
     #draw()
 # Player:
 
@@ -120,6 +128,8 @@ class Hazard:
     image = None
     x = None
     y = None
+    largura = None
+    altura = None
 
     def __init__(self, img, x, y):
         hazard_fig = pygame.image.load(img)
@@ -128,11 +138,30 @@ class Hazard:
         self.image = hazard_fig
         self.x = x
         self.y = y
+        self.largura = 130
+        self.altura = 130
     # __init__()
 
+    def mover(self, mudar_y):
+        self.y = self.y + mudar_y
+    # mover()
+
+    def reposicionar(self):
+        self.y = 0 - self.altura
+        self.x = random.randrange(125, 650 - self.altura)
+    # reposicionar()
+
+    def colidiu_com(self, player):
+        if player.y < self.y + self.altura:
+            if player.x > self.x or player.x > self.x - 56:
+                if player.x < self.x + self.largura or player.x < self.x - 56:
+                    return True
+        return False
+    # colidiu_com()
+
     # Desenhar Hazard
-    def draw (self, screen, x, y):
-        screen.blit(self.image, (x, y))
+    def draw (self, screen):
+        screen.blit(self.image, (self.x, self.y))
     #draw()
 # Hazard:
 
@@ -212,22 +241,26 @@ class Game:
     # elements_draw()
 
     # Desenha o Player
-    def draw_player (self, x, y):
-        self.player.draw (self.screen, x, y)
+    def draw_player (self):
+        self.player.draw (self.screen)
     # draw_player()
 
-    # Desenha Hazard
-    def draw_hazard (self, hzrd, x, y):
+    def hazard_atual (self, hzrd):
         if hzrd == 0:
-            self.hazard_1.draw(self.screen, x, y)
+            return self.hazard_1
         elif hzrd == 1:
-            self.hazard_2.draw(self.screen, x, y)
+            return self.hazard_2
         elif hzrd == 2:
-            self.hazard_3.draw(self.screen, x, y)
+            return self.hazard_3
         elif hzrd == 3:
-            self.hazard_4.draw(self.screen, x, y)
+            return self.hazard_4
         elif hzrd == 4:
-            self.hazard_5.draw(self.screen, x, y)
+            return self.hazard_5
+    # hazard_atual()
+
+    # Desenha Hazard
+    def draw_hazard (self, hzrd):
+        self.hazard_atual(hzrd).draw(self.screen)
     # draw_hazard()
 
     # Define as posições dos objetos para criar o movimento
@@ -260,10 +293,6 @@ class Game:
         hzrd = 0
         h_x = random.randrange(125, 660)
         h_y = -500
-
-        # Info Hazard
-        h_width = 130 #55
-        h_height = 130 #120
 
         # movimento da margem esquerda
         movL_x = 0
@@ -327,18 +356,17 @@ class Game:
                 movL_y -= 640
                 movR_y -= 640
 
-            # Altera a coordenada x do Player de acordo comas mudanças no event_handle() para ele se mover
-            x = x + self.mudar_x
+            self.player.mover(self.mudar_x)
 
             # Mostrar Player
-            self.draw_player (x, y)
+            self.draw_player()
 
             # Mostrar score
             self.score_card(self.screen, h_passou, score)
 
             # Restrições do movimento do Player
             # Se o Player bate na lateral não é Game Over
-            if x > 760 - 92 or x < 40 + 5:
+            if self.player.bateu_lateral():
                 self.screen.blit(self.render_text_bateulateral, (80, 200))
                 pygame.display.update()  # atualizar a tela
                 time.sleep(3)
@@ -346,28 +374,26 @@ class Game:
                 self.run = False
 
             # adicionando movimento ao hazard
-            h_y = h_y + velocidade_hazard / 4
-            self.draw_hazard(hzrd, h_x, h_y)
-            h_y = h_y + velocidade_hazard
+            hazard = self.hazard_atual(hzrd)
+            hazard.mover(velocidade_hazard / 4)
+            self.draw_hazard(hzrd)
+            hazard.mover(velocidade_hazard)
 
             # definindo onde hazard vai aparecer, recomeçando a posição do obstaculo e da faixa
-            if h_y > self.height:
-                h_y = 0 - h_height
-                faixaA_y = 0
-                h_x = random.randrange(125, 650 - h_height)
+            if hazard.y > self.height:
                 hzrd = random.randint(0, 4)
+                hazard = self.hazard_atual(hzrd)
+                hazard.reposicionar()
                 # determinando quantos hazard passaram e a pontuação
                 h_passou = h_passou + 1
                 score = h_passou * 10
 
             # restrições para o game over
-            if y < h_y + h_height:
-                if x > h_x or x > h_x - 56:
-                    if x < h_x + h_width or x < h_x - 56:
-                        self.screen.blit(self.render_text_perdeu, (80, 200))
-                        pygame.display.update()
-                        time.sleep(3)
-                        self.run = False
+            if hazard.colidiu_com(self.player):
+                self.screen.blit(self.render_text_perdeu, (80, 200))
+                pygame.display.update()
+                time.sleep(3)
+                self.run = False
 
             # atualizando a tela
             pygame.display.update()
