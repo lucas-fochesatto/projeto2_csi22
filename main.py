@@ -2,7 +2,6 @@
 
 import pygame
 import random
-import time
 from abc import ABC, abstractmethod
 
 class Background:
@@ -128,23 +127,198 @@ class Hazard(GameObject):
     # colidiu_com()
 # Hazard:
 
+class GameState(ABC):
+    """
+    Classe base (abstrata) do padrão State.
+    """
+    def __init__(self, game):
+        self.game = game
+    # __init__()
+
+    @abstractmethod
+    def handle_events(self, events):
+        pass
+    # handle_events()
+
+    @abstractmethod
+    def update(self, dt):
+        pass
+    # update()
+
+    @abstractmethod
+    def draw(self, screen):
+        pass
+    # draw()
+# GameState:
+
+class MenuState(GameState):
+    """
+    Tela inicial: aguarda o jogador iniciar a partida.
+    """
+    def handle_events(self, events):
+        for event in events:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                self.game.mudar_estado(PlayingState(self.game))
+    # handle_events()
+
+    def update(self, dt):
+        pass
+    # update()
+
+    def draw(self, screen):
+        self.game.background.draw(screen)
+        self._blit_centralizado(screen, self.game.texto_titulo, 180)
+        self._blit_centralizado(screen, self.game.texto_menu, 350)
+    # draw()
+
+    def _blit_centralizado(self, screen, texto, y):
+        x = (self.game.width - texto.get_width()) / 2
+        screen.blit(texto, (x, y))
+    # _blit_centralizado()
+# MenuState:
+
+class PlayingState(GameState):
+    """
+    Estado de jogo: concentra toda a lógica da partida.
+    """
+    def __init__(self, game):
+        super().__init__(game)
+        self.score = 0
+        self.h_passou = 0
+
+        # velocidades
+        self.velocidade_background = 5
+        self.velocidade_hazard = 7
+        self.velocidade_descida = self.velocidade_hazard / 4 + self.velocidade_hazard
+
+        # controle dos obstáculos
+        self.hzrd = 0
+        h_x = random.randrange(125, 660)
+        h_y = -500
+
+        # movimento das margens/fundo
+        self.movL_x = 0
+        self.movL_y = 0
+        self.movR_x = 740
+        self.movR_y = 0
+
+        # velocidade horizontal atual do Player (definida pelo input)
+        self.mudar_x = 0
+
+        # Criar o Player
+        x = (game.width - 56) / 2
+        y = game.height - 125
+        self.player = Player(x, y)
+
+        # Criar os obstáculos (Hazard) em uma coleção dinâmica
+        imagens_hazard = [
+            "Images/nave.png",
+            "Images/satelite.png",
+            "Images/cometa.png",
+            "Images/planeta.png",
+            "Images/ameaca.png",
+        ]
+        self.hazards = [Hazard(img, h_x, h_y, self.velocidade_descida) for img in imagens_hazard]
+    # __init__()
+
+    def handle_events(self, events):
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    self.mudar_x = -3
+                if event.key == pygame.K_RIGHT:
+                    self.mudar_x = 3
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
+                    self.mudar_x = 0
+    # handle_events()
+
+    def update(self, dt):
+        # movimento do fundo
+        self.movL_y = self.movL_y + self.velocidade_background
+        self.movR_y = self.movR_y + self.velocidade_background
+
+        # movimento do Player
+        self.player.velocidade = self.mudar_x
+        self.player.update()
+
+        # bater na lateral encerra a partida
+        if self.player.bateu_lateral():
+            self.game.mudar_estado(GameOverState(self.game, self.score))
+            return
+
+        # movimento do hazard ativo
+        hazard = self.hazards[self.hzrd]
+        hazard.update()
+
+        # reposiciona o hazard e atualiza o placar
+        if hazard.y > self.game.height:
+            self.hzrd = random.randint(0, 4)
+            hazard = self.hazards[self.hzrd]
+            hazard.reposicionar()
+            self.h_passou = self.h_passou + 1
+            self.score = self.h_passou * 10
+
+        # colisão com o hazard encerra a partida
+        if hazard.colidiu_com(self.player):
+            self.game.mudar_estado(GameOverState(self.game, self.score))
+            return
+    # update()
+
+    def draw(self, screen):
+        self.game.background.move(screen, self.movL_x, self.movL_y, self.movR_x, self.movR_y)
+        self.player.draw(screen)
+        self.hazards[self.hzrd].draw(screen)
+        self._desenhar_placar(screen)
+    # draw()
+
+    def _desenhar_placar(self, screen):
+        passou = self.game.fonte_placar.render("Passou: " + str(self.h_passou), True, (255, 255, 128))
+        score = self.game.fonte_placar.render("Score: " + str(self.score), True, (253, 231, 32))
+        screen.blit(passou, (0, 50))
+        screen.blit(score, (0, 100))
+    # _desenhar_placar()
+# PlayingState:
+
+class GameOverState(GameState):
+    """
+    Tela de fim de jogo: mostra o placar e aguarda voltar ao menu.
+    """
+    def __init__(self, game, score):
+        super().__init__(game)
+        self.score = score
+        self.texto_score = game.fonte_media.render("Score: " + str(score), True, (253, 231, 32))
+    # __init__()
+
+    def handle_events(self, events):
+        for event in events:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                self.game.mudar_estado(MenuState(self.game))
+    # handle_events()
+
+    def update(self, dt):
+        pass
+    # update()
+
+    def draw(self, screen):
+        self.game.background.draw(screen)
+        self._blit_centralizado(screen, self.game.texto_perdeu, 180)
+        self._blit_centralizado(screen, self.texto_score, 320)
+        self._blit_centralizado(screen, self.game.texto_continuar, 420)
+    # draw()
+
+    def _blit_centralizado(self, screen, texto, y):
+        x = (self.game.width - texto.get_width()) / 2
+        screen.blit(texto, (x, y))
+    # _blit_centralizado()
+# GameOverState:
+
 class Game:
-    screen = None
-    screen_size = None
+    """
+    Contexto do padrão State: mantém o estado atual e roda o laço principal.
+    """
     width = 800
     height = 600
-    run = True
-    background = None
-    player = None
-    hazards = None
-    render_text_bateulateral = None
-    render_text_perdeu = None
-
-    # movimento do Player
-    DIREITA = pygame.K_RIGHT
-    ESQUERDA = pygame.K_LEFT
-    mudar_x = 0.0
-
 
     def __init__(self, size, fullscreen):
 
@@ -162,187 +336,51 @@ class Game:
         pygame.display.set_caption('Viagem Espacial')
 
         # fontes
-        my_font = pygame.font.Font("Fonts/Fonte4.ttf", 100)
+        self.fonte_grande = pygame.font.Font("Fonts/Fonte4.ttf", 100)
+        self.fonte_media = pygame.font.Font("Fonts/Fonte4.ttf", 40)
+        self.fonte_placar = pygame.font.SysFont(None, 35)
 
-        # Mensagens para o jogador
-        self.render_text_bateulateral = my_font.render("COLISÃO!", 0,(255, 255, 255))  # ("texto", opaco/transparente 0/1, cor do texto)
-        self.render_text_perdeu = my_font.render("GAME OVER!", 0, (255, 0, 0))  # ("texto, opaco/transparente 0/1, cor do texto)
+        # textos pré-renderizados compartilhados entre os estados
+        self.texto_titulo = self.fonte_media.render("VIAGEM ESPACIAL", True, (255, 255, 255))
+        self.texto_menu = self.fonte_media.render("APERTE ESPACO PARA JOGAR", True, (255, 255, 255))
+        self.texto_perdeu = self.fonte_grande.render("GAME OVER!", True, (255, 0, 0))
+        self.texto_continuar = self.fonte_media.render("APERTE ESPACO PARA O MENU", True, (255, 255, 255))
+
+        # plano de fundo compartilhado
+        self.background = Background()
+
+        # estado inicial
+        self.run = True
+        self.estado = MenuState(self)
 
     # init()
 
-    def handle_events(self):
-        """
-        Trata o evento e toma a ação necessária.
-        """
-        for event in pygame.event.get():
-
-            if event.type == pygame.QUIT:
-                self.run = False
-
-            # se clicar em qualquer tecla, entra no if
-            if event.type == pygame.KEYDOWN:
-                # se clicar na seta da esquerda, anda 3 para a esquerda no eixo x
-                if event.key == self.ESQUERDA:
-                    self.mudar_x = -3
-                # se clicar na seta da direita, anda 3 para a direita no eixo x
-                if event.key == self.DIREITA:
-                    self.mudar_x = 3
-
-            # se soltar qualquer tecla, não faz nada
-            if event.type == pygame.KEYUP:
-                if event.key == self.ESQUERDA or event.key == self.DIREITA:
-                    self.mudar_x = 0
-
-    # handle_events()
-
-    def elements_update(self, dt):
-        self.background.update(dt)
-    # elements_update()
-
-    def elements_draw(self):
-        self.background.draw(self.screen)
-    # elements_draw()
-
-    # Desenha o Player
-    def draw_player (self):
-        self.player.draw (self.screen)
-    # draw_player()
-
-    def hazard_atual (self, hzrd):
-        return self.hazards[hzrd]
-    # hazard_atual()
-
-    # Desenha Hazard
-    def draw_hazard (self, hzrd):
-        self.hazard_atual(hzrd).draw(self.screen)
-    # draw_hazard()
-
-    # Define as posições dos objetos para criar o movimento
-    def move_background (self, obj_movL_x, obj_movL_y, obj_movR_x, obj_movR_y):
-        self.background.move (self.screen, obj_movL_x, obj_movL_y, obj_movR_x,obj_movR_y)
-    # move_background()
-
-    # Informa a quantidade de hazard que passaram e a Pontuação
-    def score_card(self, screen, h_passou, score):
-        font = pygame.font.SysFont(None, 35)
-        passou = font.render("Passou: " + str(h_passou), True, (255, 255, 128))
-        score = font.render("Score: " + str(score), True, (253, 231, 32))
-        screen.blit(passou, (0, 50))
-        screen.blit(score, (0, 100))
-    #score_card()
+    def mudar_estado(self, estado):
+        self.estado = estado
+    # mudar_estado()
 
     def loop(self):
         """
-        Laço principal
+        Laço principal: delega tudo ao estado atual (sem recursão, sem sleep).
         """
-        score = 0
-        h_passou = 0
-
-        # variáveis para movimento de Plano de Fundo/Background
-        velocidade_background = 5
-        velocidade_hazard = 7
-        velocidade_descida = velocidade_hazard / 4 + velocidade_hazard
-
-        faixaA_x = 375
-        faixaA_y = 0
-        hzrd = 0
-        h_x = random.randrange(125, 660)
-        h_y = -500
-
-        # movimento da margem esquerda
-        movL_x = 0
-        movL_y = 0
-
-        # movimento da margem direita
-        movR_x = 740
-        movR_y = 0
-
-        # Criar o Plano de fundo
-        self.background = Background()
-
-        # Posicao do Player
-        x = (self.width - 56) / 2
-        y = self.height - 125
-
-        # Criar o Player
-        self.player = Player(x, y)
-
-        # Criar os obstáculos (Hazard) em uma coleção dinâmica
-        imagens_hazard = [
-            "Images/nave.png",
-            "Images/satelite.png",
-            "Images/cometa.png",
-            "Images/planeta.png",
-            "Images/ameaca.png",
-        ]
-        self.hazards = [Hazard(img, h_x, h_y, velocidade_descida) for img in imagens_hazard]
-
-        # Inicializamos o relogio e o dt que vai limitar o valor de FPS
-        # frames por segundo do jogo
         clock = pygame.time.Clock()
         dt = 16
 
-        # assim iniciamos o loop principal do programa
         while self.run:
             clock.tick(1000 / dt)
 
-            # Handle Input Events
-            self.handle_events()
+            events = pygame.event.get()
+            for event in events:
+                if event.type == pygame.QUIT:
+                    self.run = False
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    self.run = False
 
-            # Atualiza Elementos
-            self.elements_update(dt)
+            self.estado.handle_events(events)
+            self.estado.update(dt)
+            self.estado.draw(self.screen)
 
-            # Desenha o background buffer
-            self.elements_draw()
-
-            # adiciona movimento ao background
-
-            self.move_background (movL_x, movL_y, movR_x, movR_y)
-            movL_y = movL_y + velocidade_background
-            movR_y = movR_y + velocidade_background
-
-            self.player.velocidade = self.mudar_x
-            self.player.update()
-
-            # Mostrar Player
-            self.draw_player()
-
-            # Mostrar score
-            self.score_card(self.screen, h_passou, score)
-
-            # Restrições do movimento do Player
-            # Se o Player bate na lateral não é Game Over
-            if self.player.bateu_lateral():
-                self.screen.blit(self.render_text_bateulateral, (80, 200))
-                pygame.display.update()  # atualizar a tela
-                time.sleep(3)
-                self.loop()
-                self.run = False
-
-            # adicionando movimento ao hazard
-            hazard = self.hazard_atual(hzrd)
-            hazard.update()
-            self.draw_hazard(hzrd)
-
-            # definindo onde hazard vai aparecer, recomeçando a posição do obstaculo e da faixa
-            if hazard.y > self.height:
-                hzrd = random.randint(0, 4)
-                hazard = self.hazard_atual(hzrd)
-                hazard.reposicionar()
-                # determinando quantos hazard passaram e a pontuação
-                h_passou = h_passou + 1
-                score = h_passou * 10
-
-            # restrições para o game over
-            if hazard.colidiu_com(self.player):
-                self.screen.blit(self.render_text_perdeu, (80, 200))
-                pygame.display.update()
-                time.sleep(3)
-                self.run = False
-
-            # atualizando a tela
             pygame.display.update()
-            clock.tick(2000)
 
         # while self.run
     # loop()
